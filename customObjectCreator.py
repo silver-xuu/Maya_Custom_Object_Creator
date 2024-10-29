@@ -63,12 +63,13 @@ class Custom_Obeject_Creation_Window(object):
         cmds.separator(height = 20, style = 'none')
         cmds.text("Default Pivot Position")
         self.pivotLocation = cmds.radioButtonGrp(label = 'Select Default Pivot Position : ', labelArray2 = ['Centre','Centre Bottom'], 
-                                           select= 0, numberOfRadioButtons = 2)
+                                           select= 1, numberOfRadioButtons = 2)
         cmds.separator(height = 20, style = 'none')
         self.cubeCreateBtn = cmds.button(label='Create Cubes',command = self.createObj)
     
     def createObj(self, *args):
         name = cmds.textFieldGrp(self.objName, query = True, text = True)
+        objCount = cmds.intSliderGrp(self.objCount,query = True, value = True)
         # get size
         width = cmds.floatSliderGrp(self.objWidth, query = True, value = True)
         height = cmds.floatSliderGrp(self.objHeight, query = True, value = True)
@@ -79,6 +80,22 @@ class Custom_Obeject_Creation_Window(object):
         heightDiv = cmds.intSliderGrp(self.objHeightDiv, query = True, value = True)
         depthDiv = cmds.intSliderGrp(self.objDepthDiv, query = True, value = True)
         axisDiv = cmds.intSliderGrp(self.objAxisDiv, query = True, value = True)
+        # get object type
+        objectType = cmds.radioButtonGrp(self.objType,query = True, select = True)
+        
+        # get pivot location
+        pivotLocation = cmds.radioButtonGrp(self.pivotLocation, query = True, select = True)
+        isBottomPivot = pivotLocation == 2
+        if objectType == 1:
+                self.createCubes(name = name, objCount = objCount, width = width, height = height,
+                                 depth = depth, widthDiv = widthDiv, heightDiv = heightDiv,
+                                 depthDiv= depthDiv, isBottomPivot = isBottomPivot)
+        elif objectType == 2:
+                self.createSpheres(name = name, objCount = objCount,
+                                   heightDiv = heightDiv, radius = radius, 
+                                   axisDiv = axisDiv, isBottomPivot = isBottomPivot)
+        else:
+                print("Object type error. Couldn't create objects")
         
     
     def onCubeSelected(self, *args):
@@ -98,6 +115,7 @@ class Custom_Obeject_Creation_Window(object):
     
     def changeDefaultName(self, type:int):
         name = cmds.textFieldGrp(self.objName, query = True, text = True)
+        # change name only if it matches the original naming convention
         if any(ele in name for ele in self.objTypes):
             cmds.textFieldGrp(self.objName, edit = True, text=f'p{self.objTypes[type]}')
     
@@ -117,6 +135,39 @@ class Custom_Obeject_Creation_Window(object):
         cmds.intSliderGrp(self.objAxisDiv, edit = True, enable = enable)
         
     
-    def bottomObjPivot(self):
+    def bottomObjPivot(self,obj):
+        # get bounding box
+        bounding_box = cmds.xform(obj, q = 1, bb = 1, ws = 1)
+        x_min, y_min, s_min, x_max, y_max, z_max = bounding_box
+        # move pivot point
+        cmds.move(y_min,[obj+'.scalePivot', obj + '.rotatePivot'], y = 1, absolute = 1)
+        # move the object pivot point to origin
+        cmds.move(y_min*-1, obj, r = 1, y = 1)
         pass
+    
+    def createCubes(self, name:str, width:float, height:float, depth:float, widthDiv:int, heightDiv:int , depthDiv:int, objCount:int, isBottomPivot:bool):
+        
+        for idx in range(objCount):
+            obj = cmds.polyCube(name=f'{name}{idx+1}',w=width, h =height, d = depth, sw=widthDiv, sh = heightDiv, sd=depthDiv)
+            selectedObj = obj[0]
+            #set the pivot point to its centre
+            cmds.xform(selectedObj,cp=1)
+            if isBottomPivot:
+                # get bou
+                self.bottomObjPivot(selectedObj)
+            
+        print(f"\n{objCount} cubes successfully created")
+        
+    
+    def createSpheres(self, name:str, heightDiv:int, objCount:int, radius:float, axisDiv:int, isBottomPivot:bool):
+        for idx in range(objCount):
+            obj = cmds.polySphere(name=f'{name}{idx+1}',r = radius, sh = heightDiv, sa = axisDiv)
+            selectedObj = obj[0]
+            cmds.xform(selectedObj,cp=1)
+            if isBottomPivot:
+                self.bottomObjPivot(selectedObj)
+                
+        print(f"\n{objCount} spheres successfully created")
+
+    
 myWindow = Custom_Obeject_Creation_Window()
